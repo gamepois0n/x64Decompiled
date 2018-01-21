@@ -1,0 +1,670 @@
+local UI_TM = CppEnums.TextMode
+local UI_color = Defines.Color
+local UCT = CppEnums.PA_UI_CONTROL_TYPE
+local _constGuildListMaxCount = 150
+local _startMemberIndex = 0
+local frame_Warfare, content_Warfare
+GuildWarfareInfoPage = {
+  _frameDefaultBG_Warfare = UI.getChildControl(Panel_Window_Guild, "Static_Frame_WarfareBG"),
+  _scrollBar,
+  _list = {}
+}
+local _iconHelper = UI.getChildControl(Panel_Guild_Warfare, "StaticText_IconHelper")
+local ui_Icons = {
+  [0] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_CommandCenter"),
+  [1] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_Tower"),
+  [2] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_CastleGate"),
+  [3] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_Help"),
+  [4] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_Summons"),
+  [5] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_Installation"),
+  [6] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_Master"),
+  [7] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_Commander"),
+  [8] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_Member"),
+  [9] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_Death"),
+  [10] = UI.getChildControl(Panel_Guild_Warfare, "StaticText_M_CharName"),
+  [11] = UI.getChildControl(Panel_Guild_Warfare, "Static_M_KillBySiege")
+}
+local staticText_CommandCenter = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_CommandCenter")
+local staticText_Tower = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_Tower")
+local staticText_CastleGate = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_CastleGate")
+local staticText_Help = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_Help")
+local staticText_Summons = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_Summons")
+local staticText_Installation = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_Installation")
+local staticText_Master = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_Master")
+local staticText_Commander = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_Commander")
+local staticText_Member = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_Member")
+local staticText_Death = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_Death")
+local staticText_KillBySiege = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_KillBySiege")
+local staticText_CharName = UI.getChildControl(Panel_Guild_Warfare, "StaticText_S_CharName")
+local _selectSortType = 11
+local _listSort = {
+  command = false,
+  tower = false,
+  castlegate = false,
+  help = false,
+  summons = false,
+  installation = false,
+  master = false,
+  commander = false,
+  member = false,
+  death = false,
+  name = false,
+  killBySiege = false
+}
+local tempGuildWarfareList = {}
+for iconidx = 0, 11 do
+  ui_Icons[iconidx]:addInputEvent("Mouse_LUp", "HandleClicked_GuildWarfareListSort( " .. iconidx .. " )")
+end
+function Panel_Guild_Warfare_Icon_ToolTip_Func()
+  for idx = 0, 11 do
+    ui_Icons[idx]:addInputEvent("Mouse_On", "Panel_Guild_Warfare_Icon_ToolTip_Show(" .. idx .. ", true )")
+    ui_Icons[idx]:addInputEvent("Mouse_Out", "Panel_Guild_Warfare_Icon_ToolTip_Show(" .. idx .. ", false )")
+  end
+end
+function Panel_Guild_Warfare_Icon_ToolTip_Show(iconNo, isOn)
+  local mouse_posX = getMousePosX()
+  local mouse_posY = getMousePosY()
+  local panel_posX = GuildWarfareInfoPage._frameDefaultBG_Warfare:GetParentPosX()
+  local panel_posY = GuildWarfareInfoPage._frameDefaultBG_Warfare:GetParentPosY()
+  _iconHelper:SetPosX(mouse_posX - panel_posX)
+  _iconHelper:SetPosY(mouse_posY - panel_posY + 15)
+  if isOn == true then
+    if iconNo == 0 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_TXT_WARFARE_HELP_COMMAND"))
+    elseif iconNo == 1 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_TXT_WARFARE_HELP_TOWER"))
+    elseif iconNo == 2 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_TXT_WARFARE_HELP_DOOR"))
+    elseif iconNo == 3 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_TXT_WARFARE_HELP_HELPER"))
+    elseif iconNo == 4 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_TXT_WARFARE_HELP_SUMMON"))
+    elseif iconNo == 5 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_TXT_WARFARE_HELP_OBJECT"))
+    elseif iconNo == 6 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_TXT_WARFARE_HELP_MASTER"))
+    elseif iconNo == 7 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_TXT_WARFARE_HELP_COMMANDER"))
+    elseif iconNo == 8 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_TXT_WARFARE_HELP_MEMBER"))
+    elseif iconNo == 9 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_TXT_WARFARE_HELP_DEATH"))
+    elseif iconNo == 10 then
+      _iconHelper:SetShow(false)
+    elseif iconNo == 11 then
+      _iconHelper:SetShow(true)
+      _iconHelper:SetText(PAGetString(Defines.StringSheet_GAME, "LUA_GUILD_WARFARE_RIDEMACHINE_KILL"))
+    end
+  else
+    _iconHelper:SetShow(false)
+  end
+end
+local frameSizeY = 0
+local contentSizeY = 0
+function GuildWarfareInfoPage:initialize()
+  Panel_Guild_Warfare_Icon_ToolTip_Func()
+  local constStartY = 5
+  frame_Warfare = UI.getChildControl(Panel_Guild_Warfare, "Frame_GuildWarfare")
+  content_Warfare = UI.getChildControl(frame_Warfare, "Frame_1_Content")
+  contentSizeY = content_Warfare:GetSizeY()
+  local copyCharName = UI.getChildControl(content_Warfare, "StaticText_C_CharName")
+  local copyTower = UI.getChildControl(content_Warfare, "StaticText_C_Tower")
+  local copyCommandCenter = UI.getChildControl(content_Warfare, "StaticText_C_CommandCenter")
+  local copyCastleGate = UI.getChildControl(content_Warfare, "StaticText_C_CastleGate")
+  local copyHelp = UI.getChildControl(content_Warfare, "StaticText_C_Help")
+  local copySummons = UI.getChildControl(content_Warfare, "StaticText_C_Summons")
+  local copyInstallation = UI.getChildControl(content_Warfare, "StaticText_C_Installation")
+  local copyMaster = UI.getChildControl(content_Warfare, "StaticText_C_Master")
+  local copyCommander = UI.getChildControl(content_Warfare, "StaticText_C_Commander")
+  local copyMember = UI.getChildControl(content_Warfare, "StaticText_C_Member")
+  local copyDeath = UI.getChildControl(content_Warfare, "StaticText_C_Death")
+  local copyKillBySiege = UI.getChildControl(content_Warfare, "StaticText_C_KillBySiege")
+  local copyPartline = UI.getChildControl(content_Warfare, "Static_C_PartLine")
+  self._scrollBar = UI.getChildControl(frame_Warfare, "VerticalScroll")
+  UIScroll.InputEvent(self._scrollBar, "GuildWarfareMouseScrollEvent")
+  content_Warfare:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent( true )")
+  content_Warfare:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent( false )")
+  function createWarfareInfo(pIndex)
+    local rtGuildWarfareInfo = {}
+    rtGuildWarfareInfo._txtCharName = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_CharName_" .. pIndex)
+    rtGuildWarfareInfo._txtTower = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_Tower_" .. pIndex)
+    rtGuildWarfareInfo._txtCommandCenter = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_CommandCenter_" .. pIndex)
+    rtGuildWarfareInfo._txtCastleGate = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_CastleGate_" .. pIndex)
+    rtGuildWarfareInfo._txtHelp = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_Help_" .. pIndex)
+    rtGuildWarfareInfo._txtSummons = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_Summons_" .. pIndex)
+    rtGuildWarfareInfo._txtInstallation = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_Installation_" .. pIndex)
+    rtGuildWarfareInfo._txtMaster = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_Master_" .. pIndex)
+    rtGuildWarfareInfo._txtCommander = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_Commander_" .. pIndex)
+    rtGuildWarfareInfo._txtMember = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_Member_" .. pIndex)
+    rtGuildWarfareInfo._txtDeath = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_Death_" .. pIndex)
+    rtGuildWarfareInfo._txtKillBySiege = UI.createControl(UCT.PA_UI_CONTROL_STATICTEXT, content_Warfare, "StaticText_C_KillBySiege_" .. pIndex)
+    rtGuildWarfareInfo._Partline = UI.createControl(UCT.PA_UI_CONTROL_STATIC, content_Warfare, "Static_C_PartLine_" .. pIndex)
+    CopyBaseProperty(copyCharName, rtGuildWarfareInfo._txtCharName)
+    CopyBaseProperty(copyTower, rtGuildWarfareInfo._txtTower)
+    CopyBaseProperty(copyCommandCenter, rtGuildWarfareInfo._txtCommandCenter)
+    CopyBaseProperty(copyCastleGate, rtGuildWarfareInfo._txtCastleGate)
+    CopyBaseProperty(copyHelp, rtGuildWarfareInfo._txtHelp)
+    CopyBaseProperty(copySummons, rtGuildWarfareInfo._txtSummons)
+    CopyBaseProperty(copyInstallation, rtGuildWarfareInfo._txtInstallation)
+    CopyBaseProperty(copyMaster, rtGuildWarfareInfo._txtMaster)
+    CopyBaseProperty(copyCommander, rtGuildWarfareInfo._txtCommander)
+    CopyBaseProperty(copyMember, rtGuildWarfareInfo._txtMember)
+    CopyBaseProperty(copyDeath, rtGuildWarfareInfo._txtDeath)
+    CopyBaseProperty(copyKillBySiege, rtGuildWarfareInfo._txtKillBySiege)
+    CopyBaseProperty(copyPartline, rtGuildWarfareInfo._Partline)
+    rtGuildWarfareInfo._txtCharName:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtTower:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtCommandCenter:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtCastleGate:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtHelp:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtSummons:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtInstallation:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtMaster:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtCommander:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtMember:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtDeath:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._txtKillBySiege:SetPosY(constStartY + pIndex * 25)
+    rtGuildWarfareInfo._Partline:SetPosY(pIndex * 25)
+    rtGuildWarfareInfo._txtCharName:SetIgnore(false)
+    rtGuildWarfareInfo._txtTower:SetIgnore(false)
+    rtGuildWarfareInfo._txtCommandCenter:SetIgnore(false)
+    rtGuildWarfareInfo._txtCastleGate:SetIgnore(false)
+    rtGuildWarfareInfo._txtHelp:SetIgnore(false)
+    rtGuildWarfareInfo._txtSummons:SetIgnore(false)
+    rtGuildWarfareInfo._txtInstallation:SetIgnore(false)
+    rtGuildWarfareInfo._txtMaster:SetIgnore(false)
+    rtGuildWarfareInfo._txtCommander:SetIgnore(false)
+    rtGuildWarfareInfo._txtMember:SetIgnore(false)
+    rtGuildWarfareInfo._txtDeath:SetIgnore(false)
+    rtGuildWarfareInfo._txtKillBySiege:SetIgnore(false)
+    rtGuildWarfareInfo._Partline:SetIgnore(false)
+    rtGuildWarfareInfo._txtCharName:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtTower:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtCommandCenter:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtCastleGate:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtHelp:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtSummons:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtInstallation:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtMaster:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtCommander:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtMember:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtDeath:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtKillBySiege:addInputEvent("Mouse_UpScroll", "GuildWarfareMouseScrollEvent(true)")
+    rtGuildWarfareInfo._txtCharName:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtTower:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtCommandCenter:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtCastleGate:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtHelp:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtSummons:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtInstallation:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtMaster:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtCommander:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtMember:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtDeath:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    rtGuildWarfareInfo._txtKillBySiege:addInputEvent("Mouse_DownScroll", "GuildWarfareMouseScrollEvent(false)")
+    function rtGuildWarfareInfo:SetShow(isShow)
+      rtGuildWarfareInfo._txtCharName:SetShow(isShow)
+      rtGuildWarfareInfo._txtTower:SetShow(isShow)
+      rtGuildWarfareInfo._txtCommandCenter:SetShow(isShow)
+      rtGuildWarfareInfo._txtCastleGate:SetShow(isShow)
+      rtGuildWarfareInfo._txtHelp:SetShow(isShow)
+      rtGuildWarfareInfo._txtSummons:SetShow(isShow)
+      rtGuildWarfareInfo._txtInstallation:SetShow(isShow)
+      rtGuildWarfareInfo._txtMaster:SetShow(isShow)
+      rtGuildWarfareInfo._txtCommander:SetShow(isShow)
+      rtGuildWarfareInfo._txtMember:SetShow(isShow)
+      rtGuildWarfareInfo._txtDeath:SetShow(isShow)
+      rtGuildWarfareInfo._txtKillBySiege:SetShow(isShow)
+      rtGuildWarfareInfo._Partline:SetShow(isShow)
+    end
+    return rtGuildWarfareInfo
+  end
+  for index = 0, _constGuildListMaxCount - 1 do
+    self._list[index] = createWarfareInfo(index)
+  end
+  UI.deleteControl(copyCharName)
+  UI.deleteControl(copyTower)
+  UI.deleteControl(copyCommandCenter)
+  UI.deleteControl(copyCastleGate)
+  UI.deleteControl(copyHelp)
+  UI.deleteControl(copySummons)
+  UI.deleteControl(copyInstallation)
+  UI.deleteControl(copyMaster)
+  UI.deleteControl(copyCommander)
+  UI.deleteControl(copyMember)
+  UI.deleteControl(copyDeath)
+  UI.deleteControl(copyKillBySiege)
+  UI.deleteControl(copyPartline)
+  copyCharName, copyTower, copyCommandCenter, copyCastleGate, copyHelp, copySummons, copyInstallation, copyMaster, copyCommander, copyMember, copyDeath, copyKillBySiege, copyPartline = nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
+  frameSizeY = frame_Warfare:GetSizeY()
+  frame_Warfare:UpdateContentScroll()
+  frame_Warfare:UpdateContentPos()
+  self._frameDefaultBG_Warfare:MoveChilds(self._frameDefaultBG_Warfare:GetID(), Panel_Guild_Warfare)
+  UI.deletePanel(Panel_Guild_Warfare:GetID())
+  Panel_Guild_Warfare = nil
+end
+function GuildWarfareMouseScrollEvent(isUpScroll)
+  local guildWrapper = ToClient_GetMyGuildInfoWrapper()
+  if nil == guildWrapper then
+    return
+  end
+  local memberCount = guildWrapper:getMemberCount()
+  UIScroll.ScrollEvent(GuildWarfareInfoPage._scrollBar, isUpScroll, memberCount, memberCount, 0, 1)
+  GuildWarfareInfoPage:UpdateData()
+end
+function GuildWarfareInfoPage:TitleLineReset()
+  staticText_CommandCenter:SetShow(false)
+  staticText_Tower:SetShow(false)
+  staticText_CastleGate:SetShow(false)
+  staticText_Help:SetShow(false)
+  staticText_Summons:SetShow(false)
+  staticText_Installation:SetShow(false)
+  staticText_Master:SetShow(false)
+  staticText_Commander:SetShow(false)
+  staticText_Member:SetShow(false)
+  staticText_Death:SetShow(false)
+  staticText_KillBySiege:SetShow(false)
+  staticText_CharName:SetShow(false)
+end
+function GuildWarfareInfoPage:SetGuildList()
+  local myGuildWarfareListInfo = ToClient_GetMyGuildInfoWrapper()
+  if nil == myGuildWarfareListInfo then
+    return
+  end
+  local memberCount = myGuildWarfareListInfo:getMemberCount()
+  for index = 1, memberCount do
+    local myGuildMemberInfo = myGuildWarfareListInfo:getMember(index - 1)
+    tempGuildWarfareList[index] = {
+      idx = index - 1,
+      command = myGuildMemberInfo:commandPostCount(),
+      tower = myGuildMemberInfo:towerCount(),
+      castlegate = myGuildMemberInfo:gateCount(),
+      help = myGuildMemberInfo:assistCount(),
+      summons = myGuildMemberInfo:summonedCount(),
+      installation = myGuildMemberInfo:obstacleCount(),
+      master = myGuildMemberInfo:guildMasterCount(),
+      commander = myGuildMemberInfo:squadLeaderCount(),
+      member = myGuildMemberInfo:squadMemberCount(),
+      death = myGuildMemberInfo:deathCount(),
+      name = myGuildMemberInfo:getName(),
+      killBySiege = myGuildMemberInfo:killBySiegeWeaponCount()
+    }
+  end
+end
+local function guildListCompareCommandCenter(w1, w2)
+  if true == _listSort.command then
+    if w1.command < w2.command then
+      return true
+    end
+  elseif w2.command < w1.command then
+    return true
+  end
+end
+local function guildListCompareTower(w1, w2)
+  if true == _listSort.tower then
+    if w2.tower < w1.tower then
+      return true
+    end
+  elseif w1.tower < w2.tower then
+    return true
+  end
+end
+local function guildListCompareCastleGate(w1, w2)
+  if true == _listSort.castlegate then
+    if w2.castlegate < w1.castlegate then
+      return true
+    end
+  elseif w1.castlegate < w2.castlegate then
+    return true
+  end
+end
+local function guildListCompareHelp(w1, w2)
+  if true == _listSort.help then
+    if w1.help < w2.help then
+      return true
+    end
+  elseif w2.help < w1.help then
+    return true
+  end
+end
+local function guildListCompareSummons(w1, w2)
+  if true == _listSort.summons then
+    if w2.summons < w1.summons then
+      return true
+    end
+  elseif w1.summons < w2.summons then
+    return true
+  end
+end
+local function guildListCompareInstallation(w1, w2)
+  if true == _listSort.installation then
+    if w2.installation < w1.installation then
+      return true
+    end
+  elseif w1.installation < w2.installation then
+    return true
+  end
+end
+local function guildListCompareMaster(w1, w2)
+  if true == _listSort.master then
+    if w2.master < w1.master then
+      return true
+    end
+  elseif w1.master < w2.master then
+    return true
+  end
+end
+local function guildListCompareCommander(w1, w2)
+  if true == _listSort.commander then
+    if w2.commander < w1.commander then
+      return true
+    end
+  elseif w1.commander < w2.commander then
+    return true
+  end
+end
+local function guildListCompareMember(w1, w2)
+  if true == _listSort.member then
+    if w2.member < w1.member then
+      return true
+    end
+  elseif w1.member < w2.member then
+    return true
+  end
+end
+local function guildListCompareDeath(w1, w2)
+  if true == _listSort.death then
+    if w2.death < w1.death then
+      return true
+    end
+  elseif w1.death < w2.death then
+    return true
+  end
+end
+local function guildListCompareCharName(w1, w2)
+  if true == _listSort.name then
+    if w2.name < w1.name then
+      return true
+    end
+  elseif w1.name < w2.name then
+    return true
+  end
+end
+local function guildListCompareKillBySiege(w1, w2)
+  if true == _listSort.killBySiege then
+    if w2.killBySiege < w1.killBySiege then
+      return true
+    end
+  elseif w1.killBySiege < w2.killBySiege then
+    return true
+  end
+end
+function HandleClicked_GuildWarfareListSort(sortType)
+  _selectSortType = sortType
+  GuildWarfareInfoPage:TitleLineReset()
+  if 0 == sortType then
+    if false == _listSort.command then
+      staticText_CommandCenter:SetText("\226\150\178")
+      _listSort.command = true
+    else
+      staticText_CommandCenter:SetText("\226\150\188")
+      _listSort.command = false
+    end
+    staticText_CommandCenter:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareCommandCenter)
+  elseif 1 == sortType then
+    if false == _listSort.tower then
+      staticText_Tower:SetText("\226\150\178")
+      _listSort.tower = true
+    else
+      staticText_Tower:SetText("\226\150\188")
+      _listSort.tower = false
+    end
+    staticText_Tower:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareTower)
+  elseif 2 == sortType then
+    if false == _listSort.castlegate then
+      staticText_CastleGate:SetText("\226\150\178")
+      _listSort.castlegate = true
+    else
+      staticText_CastleGate:SetText("\226\150\188")
+      _listSort.castlegate = false
+    end
+    staticText_CastleGate:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareCastleGate)
+  elseif 3 == sortType then
+    if false == _listSort.help then
+      staticText_Help:SetText("\226\150\178")
+      _listSort.help = true
+    else
+      staticText_Help:SetText("\226\150\188")
+      _listSort.help = false
+    end
+    staticText_Help:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareHelp)
+  elseif 4 == sortType then
+    if false == _listSort.summons then
+      staticText_Summons:SetText("\226\150\178")
+      _listSort.summons = true
+    else
+      staticText_Summons:SetText("\226\150\188")
+      _listSort.summons = false
+    end
+    staticText_Summons:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareSummons)
+  elseif 5 == sortType then
+    if false == _listSort.installation then
+      staticText_Installation:SetText("\226\150\178")
+      _listSort.installation = true
+    else
+      staticText_Installation:SetText("\226\150\188")
+      _listSort.installation = false
+    end
+    staticText_Installation:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareInstallation)
+  elseif 6 == sortType then
+    if false == _listSort.master then
+      staticText_Master:SetText("\226\150\178")
+      _listSort.master = true
+    else
+      staticText_Master:SetText("\226\150\188")
+      _listSort.master = false
+    end
+    staticText_Master:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareMaster)
+  elseif 7 == sortType then
+    if false == _listSort.commander then
+      staticText_Commander:SetText("\226\150\178")
+      _listSort.commander = true
+    else
+      staticText_Commander:SetText("\226\150\188")
+      _listSort.commander = false
+    end
+    staticText_Commander:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareCommander)
+  elseif 8 == sortType then
+    if false == _listSort.member then
+      staticText_Member:SetText("\226\150\178")
+      _listSort.member = true
+    else
+      staticText_Member:SetText("\226\150\188")
+      _listSort.member = false
+    end
+    staticText_Member:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareMember)
+  elseif 9 == sortType then
+    if false == _listSort.death then
+      staticText_Death:SetText("\226\150\178")
+      _listSort.death = true
+    else
+      staticText_Death:SetText("\226\150\188")
+      _listSort.death = false
+    end
+    staticText_Death:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareDeath)
+  elseif 10 == sortType then
+    if false == _listSort.name then
+      staticText_CharName:SetText("\226\150\178")
+      _listSort.name = true
+    else
+      staticText_CharName:SetText("\226\150\188")
+      _listSort.name = false
+    end
+    staticText_CharName:SetShow(true)
+    staticText_CharName:SetPosX(ui_Icons[sortType]:GetPosX() + ui_Icons[sortType]:GetSizeX() / 2 + ui_Icons[sortType]:GetTextSizeX() / 2 + 10)
+    table.sort(tempGuildWarfareList, guildListCompareCharName)
+  elseif 11 == sortType then
+    if false == _listSort.killBySiege then
+      staticText_KillBySiege:SetText("\226\150\178")
+      _listSort.killBySiege = true
+    else
+      staticText_KillBySiege:SetText("\226\150\188")
+      _listSort.killBySiege = false
+    end
+    staticText_KillBySiege:SetShow(true)
+    table.sort(tempGuildWarfareList, guildListCompareKillBySiege)
+  end
+  GuildWarfareInfoPage:UpdateData()
+end
+function GuildWarfareInfoPage:GuildListSortSet()
+  GuildWarfareInfoPage:TitleLineReset()
+  staticText_CharName:SetText("\226\150\178")
+  _listSort.name = true
+  staticText_CharName:SetShow(true)
+  table.sort(tempGuildWarfareList, guildListCompareCharName)
+  staticText_CharName:SetPosX(ui_Icons[10]:GetPosX() + ui_Icons[10]:GetSizeX() / 2 + ui_Icons[10]:GetTextSizeX() / 2 + 10)
+end
+function GuildWarfareInfoPage:updateSort()
+  if 0 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareCommandCenter)
+  elseif 1 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareTower)
+  elseif 2 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareCastleGate)
+  elseif 3 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareHelp)
+  elseif 4 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareSummons)
+  elseif 5 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareInstallation)
+  elseif 6 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareMaster)
+  elseif 7 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareCommander)
+  elseif 8 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareMember)
+  elseif 9 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareDeath)
+  elseif 10 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareCharName)
+  elseif 11 == _selectSortType then
+    table.sort(tempGuildWarfareList, guildListCompareKillBySiege)
+  end
+end
+function GuildWarfareInfoPage:UpdateData()
+  GuildWarfareInfoPage:SetGuildList()
+  GuildWarfareInfoPage:updateSort()
+  local myGuildInfo = ToClient_GetMyGuildInfoWrapper()
+  if nil == myGuildInfo then
+    return
+  end
+  contentSizeY = 0
+  for index = 0, _constGuildListMaxCount - 1 do
+    self._list[index]:SetShow(false)
+  end
+  local memberCount = myGuildInfo:getMemberCount()
+  for index = 0, memberCount - 1 do
+    local dataIdx = tempGuildWarfareList[index + 1].idx
+    local myGuildMemberInfo = myGuildInfo:getMember(dataIdx)
+    if nil == myGuildMemberInfo then
+      return
+    end
+    if myGuildMemberInfo:isOnline() then
+      if myGuildMemberInfo:isSelf() then
+        self._list[index]._txtCharName:SetFontColor(UI_color.C_FFEF9C7F)
+      else
+        self._list[index]._txtCharName:SetFontColor(UI_color.C_FFC4BEBE)
+      end
+      self._list[index]._txtCharName:SetText(myGuildMemberInfo:getName() .. " (" .. myGuildMemberInfo:getCharacterName() .. ")")
+      self._list[index]._txtCommandCenter:SetFontColor(UI_color.C_FFC4BEBE)
+      self._list[index]._txtTower:SetFontColor(UI_color.C_FFC4BEBE)
+      self._list[index]._txtCastleGate:SetFontColor(UI_color.C_FFC4BEBE)
+      self._list[index]._txtHelp:SetFontColor(UI_color.C_FFC4BEBE)
+      self._list[index]._txtSummons:SetFontColor(UI_color.C_FFC4BEBE)
+      self._list[index]._txtInstallation:SetFontColor(UI_color.C_FFC4BEBE)
+      self._list[index]._txtMaster:SetFontColor(UI_color.C_FFC4BEBE)
+      self._list[index]._txtCommander:SetFontColor(UI_color.C_FFC4BEBE)
+      self._list[index]._txtMember:SetFontColor(UI_color.C_FFC4BEBE)
+      self._list[index]._txtDeath:SetFontColor(UI_color.C_FFC4BEBE)
+      self._list[index]._txtKillBySiege:SetFontColor(UI_color.C_FFC4BEBE)
+    else
+      self._list[index]._txtCharName:SetText(myGuildMemberInfo:getName() .. " ( - )")
+      self._list[index]._txtCharName:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtCommandCenter:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtTower:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtCastleGate:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtHelp:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtSummons:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtInstallation:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtMaster:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtCommander:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtMember:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtDeath:SetFontColor(UI_color.C_FF515151)
+      self._list[index]._txtKillBySiege:SetFontColor(UI_color.C_FF515151)
+    end
+    self._list[index]._txtCommandCenter:SetText(myGuildMemberInfo:commandPostCount())
+    self._list[index]._txtTower:SetText(myGuildMemberInfo:towerCount())
+    self._list[index]._txtCastleGate:SetText(myGuildMemberInfo:gateCount())
+    self._list[index]._txtHelp:SetText(myGuildMemberInfo:assistCount())
+    self._list[index]._txtSummons:SetText(myGuildMemberInfo:summonedCount())
+    self._list[index]._txtInstallation:SetText(myGuildMemberInfo:obstacleCount())
+    self._list[index]._txtMaster:SetText(myGuildMemberInfo:guildMasterCount())
+    self._list[index]._txtCommander:SetText(myGuildMemberInfo:squadLeaderCount())
+    self._list[index]._txtMember:SetText(myGuildMemberInfo:squadMemberCount())
+    self._list[index]._txtDeath:SetText(myGuildMemberInfo:deathCount())
+    self._list[index]._txtKillBySiege:SetText(myGuildMemberInfo:killBySiegeWeaponCount())
+    contentSizeY = contentSizeY + self._list[index]._txtCharName:GetSizeY() + 2
+    content_Warfare:SetSize(content_Warfare:GetSizeX(), contentSizeY)
+  end
+  for index = 0, _constGuildListMaxCount - 1 do
+    if memberCount > _startMemberIndex + index then
+      self._list[index]:SetShow(true)
+    else
+      self._list[index]:SetShow(false)
+    end
+  end
+  if frameSizeY >= contentSizeY then
+    self._scrollBar:SetShow(false)
+  else
+    self._scrollBar:SetShow(true)
+  end
+  frame_Warfare:UpdateContentScroll()
+  frame_Warfare:UpdateContentPos()
+end
+function GuildWarfareInfoPage:Show()
+  self._frameDefaultBG_Warfare:SetShow(true)
+  self._scrollBar:SetControlPos(0)
+  self:SetGuildList()
+  _selectSortType = 10
+  self:GuildListSortSet()
+  self:UpdateData()
+end
+function GuildWarfareInfoPage:Hide()
+  if true == self._frameDefaultBG_Warfare:GetShow() then
+    self._frameDefaultBG_Warfare:SetShow(false)
+  end
+end
+registerEvent("Event_SiegeScoreUpdateData", "FromClient_GuildWarfareInfoUpdate")
+function FromClient_GuildWarfareInfoUpdate()
+  GuildWarfareInfoPage:UpdateData()
+end
